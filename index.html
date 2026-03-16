@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Universal Vision AI - Zero/One/Few Shot</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .info-box {
+            background: #f0f4ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 25px;
+            border-radius: 8px;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        label {
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 5px;
+        }
+        input, select, button {
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 15px;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102,126,234,0.4);
+        }
+        .example-selector {
+            display: none;
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 10px;
+        }
+        .example-images {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 10px 0;
+        }
+        .example-thumb {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 2px solid transparent;
+            cursor: pointer;
+        }
+        .example-thumb.selected {
+            border-color: #667eea;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            background: #f0f4ff;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            display: none;
+        }
+        .result {
+            margin-top: 30px;
+            text-align: center;
+            display: none;
+        }
+        .result img {
+            max-width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+        }
+        .stats {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        .stat-card {
+            background: #f9f9f9;
+            padding: 15px 20px;
+            border-radius: 10px;
+            min-width: 100px;
+        }
+        .stat-card .value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Universal Vision AI</h1>
+        <div class="subtitle">Zero-Shot • One-Shot • Few-Shot Detection</div>
+
+        <div class="info-box">
+            <strong>🧠 How it works:</strong><br>
+            • <strong>Zero-shot:</strong> Detect objects never seen before (text only)<br>
+            • <strong>One-shot:</strong> Show ONE example, find similar objects<br>
+            • <strong>Few-shot:</strong> Show MULTIPLE examples, build prototype
+        </div>
+
+        <form id="detectForm">
+            <div class="form-group">
+                <label>📸 Image:</label>
+                <input type="file" name="file" accept="image/*" required>
+            </div>
+
+            <div class="form-group">
+                <label>🎯 Prompt:</label>
+                <input type="text" name="prompt" placeholder="e.g., cat, dog, car" value="cat" required>
+            </div>
+
+            <div class="form-group">
+                <label>⚡ Shot Type:</label>
+                <select name="shot_type" id="shotType">
+                    <option value="zero">Zero-shot (No examples)</option>
+                    <option value="one">One-shot (One example)</option>
+                    <option value="few">Few-shot (Multiple examples)</option>
+                </select>
+            </div>
+
+            <div class="example-selector" id="exampleSelector">
+                <label>🖼️ Select Examples:</label>
+                <div class="example-images" id="exampleImages"></div>
+                <input type="hidden" name="example_images" id="exampleInput">
+            </div>
+
+            <button type="submit">🔍 Detect Objects</button>
+        </form>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <div>Processing... (10-30 seconds)</div>
+        </div>
+
+        <div class="error" id="error"></div>
+
+        <div class="result" id="result">
+            <h2>Results</h2>
+            <div class="stats">
+                <div class="stat-card">
+                    <div>Objects</div>
+                    <div class="value" id="objectCount">0</div>
+                </div>
+                <div class="stat-card">
+                    <div>Type</div>
+                    <div class="value" id="shotTypeDisplay">-</div>
+                </div>
+                <div class="stat-card">
+                    <div>Time</div>
+                    <div class="value" id="timeTaken">-</div>
+                </div>
+            </div>
+            <img id="resultImage" src="" alt="Detection result">
+        </div>
+    </div>
+
+    <script>
+        // Toggle example selector
+        document.getElementById('shotType').addEventListener('change', function(e) {
+            const selector = document.getElementById('exampleSelector');
+            selector.style.display = e.target.value === 'few' ? 'block' : 'none';
+        });
+
+        // Load examples
+        async function loadExamples() {
+            try {
+                const res = await fetch('/examples');
+                const data = await res.json();
+                const container = document.getElementById('exampleImages');
+                const input = document.getElementById('exampleInput');
+                let selected = [];
+
+                data.examples.forEach(ex => {
+                    const img = document.createElement('img');
+                    img.src = ex.path;
+                    img.className = 'example-thumb';
+                    img.onclick = () => {
+                        img.classList.toggle('selected');
+                        if (img.classList.contains('selected')) {
+                            selected.push(ex.filename);
+                        } else {
+                            selected = selected.filter(f => f !== ex.filename);
+                        }
+                        input.value = selected.join(',');
+                    };
+                    container.appendChild(img);
+                });
+            } catch (e) {
+                console.log('No examples loaded');
+            }
+        }
+        loadExamples();
+
+        // Handle form
+        const form = document.getElementById('detectForm');
+        const loading = document.getElementById('loading');
+        const error = document.getElementById('error');
+        const result = document.getElementById('result');
+        const resultImg = document.getElementById('resultImage');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            loading.style.display = 'block';
+            error.style.display = 'none';
+            result.style.display = 'none';
+
+            const formData = new FormData(form);
+
+            try {
+                const response = await fetch('/detect', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    error.textContent = '❌ ' + data.error;
+                    error.style.display = 'block';
+                } else {
+                    document.getElementById('objectCount').textContent = data.num_objects;
+                    document.getElementById('shotTypeDisplay').textContent = data.shot_info;
+                    document.getElementById('timeTaken').textContent = data.time_taken;
+
+                    resultImg.src = data.masks_img;
+                    result.style.display = 'block';
+                }
+            } catch (err) {
+                error.textContent = '❌ Error: ' + err.message;
+                error.style.display = 'block';
+            } finally {
+                loading.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
